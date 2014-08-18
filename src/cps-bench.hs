@@ -12,6 +12,7 @@ import Conduit.Class
 import qualified Conduit.Standard
 import qualified Conduit.Free
 import qualified Conduit.Codensity
+import qualified Conduit.Church
 import Data.Word (Word8)
 import qualified Data.Map as Map
 import Data.IORef
@@ -118,9 +119,11 @@ main = do
         toSpec "Standard" Conduit.Standard.run Conduit.Standard.run
         toSpec "Free" Conduit.Free.run Conduit.Free.run
         toSpec "Codensity" Conduit.Codensity.run Conduit.Codensity.run
+        toSpec "Church" Conduit.Church.run Conduit.Church.run
 
     defaultMain $ regroup
         [ toBench "Standard" Conduit.Standard.run Conduit.Standard.run
         , toBench "Free" Conduit.Free.run Conduit.Free.run
         , toBench "Codensity" Conduit.Codensity.run Conduit.Codensity.run
+        , toBench "Church" Conduit.Church.run Conduit.Church.run
         ]
