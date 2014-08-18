@@ -98,6 +98,12 @@ toBench name run run2 =
     , ("mapM_ yield, map, monadic sum", bench name $ whnfIO $ do
         x <- readIORef thousandRef
         run2 $ enumFromToC 1 x `fuse` mapC (+ 1) `fuse` foldC (+) 0)
+    , ("mix compositions", bench name $ flip whnf 1000 $ \i ->
+        runIdentity $ run $
+            ((enumFromToC 1 i `fuse` mapC (+ 1)) >> mapM_ yield [1..i])
+            `fuse` (mapC (+ 1) >> mapM_ yield [1..i])
+            `fuse` foldC (+) 0
+        )
     ]
 
 regroup [] = []
