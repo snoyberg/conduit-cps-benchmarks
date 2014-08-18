@@ -74,30 +74,37 @@ toSpec name run run2 = describe name $ do
 fixBenches m =
     map (\(x, y) -> map (\(k, v) -> (k, Map.singleton x v)) $ Map.toList y) $ Map.toList m
 
+thousandRef :: IORef Int
 thousandRef = unsafePerformIO $ newIORef 1000
 
-toBench name run run2 = bgroup name
-    [ bench "mapM_ yield, pure sum" $ flip whnf [1..1000] $ \is ->
-        runIdentity $ run $ mapM_ yield is `fuse` foldC (+) 0
-    , bench "mapM_ yield, monadic sum" $ whnfIO $ do
+toBench name run run2 =
+    [ ("mapM_ yield, pure sum", bench name $ flip whnf [1..1000] $ \is ->
+        runIdentity $ run $ mapM_ yield is `fuse` foldC (+) 0)
+    , ("mapM_ yield, monadic sum", bench name $ whnfIO $ do
         x <- readIORef thousandRef
-        run2 $ mapM_ yield [1..x] `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, pure sum" $ flip whnf [1..1000] $ \is ->
-        runIdentity $ run $ mapM_ yield is `fuse` mapC (+ 1) `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, monadic sum" $ whnfIO $ do
+        run2 $ mapM_ yield [1..x] `fuse` foldC (+) 0)
+    , ("mapM_ yield, map, pure sum", bench name $ flip whnf [1..1000] $ \is ->
+        runIdentity $ run $ mapM_ yield is `fuse` mapC (+ 1) `fuse` foldC (+) 0)
+    , ("mapM_ yield, map, monadic sum", bench name $ whnfIO $ do
         x <- readIORef thousandRef
-        run2 $ mapM_ yield [1..x] `fuse` mapC (+ 1) `fuse` foldC (+) 0
-    , bench "enumFromTo, pure sum" $ flip whnf 1000 $ \i ->
-        runIdentity $ run $ enumFromToC 1 i `fuse` foldC (+) 0
-    , bench "mapM_ yield, monadic sum" $ whnfIO $ do
+        run2 $ mapM_ yield [1..x] `fuse` mapC (+ 1) `fuse` foldC (+) 0)
+    , ("enumFromTo, pure sum", bench name $ flip whnf 1000 $ \i ->
+        runIdentity $ run $ enumFromToC 1 i `fuse` foldC (+) 0)
+    , ("mapM_ yield, monadic sum", bench name $ whnfIO $ do
         x <- readIORef thousandRef
-        run2 $ enumFromToC 1 x `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, pure sum" $ flip whnf 1000 $ \i ->
-        runIdentity $ run $ enumFromToC 1 i `fuse` mapC (+ 1) `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, monadic sum" $ whnfIO $ do
+        run2 $ enumFromToC 1 x `fuse` foldC (+) 0)
+    , ("mapM_ yield, map, pure sum", bench name $ flip whnf 1000 $ \i ->
+        runIdentity $ run $ enumFromToC 1 i `fuse` mapC (+ 1) `fuse` foldC (+) 0)
+    , ("mapM_ yield, map, monadic sum", bench name $ whnfIO $ do
         x <- readIORef thousandRef
-        run2 $ enumFromToC 1 x `fuse` mapC (+ 1) `fuse` foldC (+) 0
+        run2 $ enumFromToC 1 x `fuse` mapC (+ 1) `fuse` foldC (+) 0)
     ]
+
+regroup [] = []
+regroup ([]:_) = []
+regroup xs = toGroup (map head xs) : regroup (map tail xs)
+  where
+    toGroup ys = bgroup (fst $ head ys) (map snd ys)
 
 main :: IO ()
 main = do
@@ -106,7 +113,7 @@ main = do
         toSpec "Free" Conduit.Free.run Conduit.Free.run
         toSpec "Codensity" Conduit.Codensity.run Conduit.Codensity.run
 
-    defaultMain $
+    defaultMain $ regroup
         [ toBench "Standard" Conduit.Standard.run Conduit.Standard.run
         , toBench "Free" Conduit.Free.run Conduit.Free.run
         , toBench "Codensity" Conduit.Codensity.run Conduit.Codensity.run
