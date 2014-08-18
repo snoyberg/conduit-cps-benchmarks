@@ -14,6 +14,8 @@ import qualified Conduit.Free
 import qualified Conduit.Codensity
 import Data.Word (Word8)
 import qualified Data.Map as Map
+import Data.IORef
+import System.IO.Unsafe
 
 enumFromToC :: (IsConduit c, Monad m, Enum a, Eq a, Monad (c i a m)) => a -> a -> c i a m ()
 enumFromToC x0 y =
@@ -72,23 +74,29 @@ toSpec name run run2 = describe name $ do
 fixBenches m =
     map (\(x, y) -> map (\(k, v) -> (k, Map.singleton x v)) $ Map.toList y) $ Map.toList m
 
+thousandRef = unsafePerformIO $ newIORef 1000
+
 toBench name run run2 = bgroup name
     [ bench "mapM_ yield, pure sum" $ flip whnf [1..1000] $ \is ->
         runIdentity $ run $ mapM_ yield is `fuse` foldC (+) 0
-    , bench "mapM_ yield, monadic sum" $ whnfIO $
-        run2 $ mapM_ yield [1..1000] `fuse` foldC (+) 0
+    , bench "mapM_ yield, monadic sum" $ whnfIO $ do
+        x <- readIORef thousandRef
+        run2 $ mapM_ yield [1..x] `fuse` foldC (+) 0
     , bench "mapM_ yield, map, pure sum" $ flip whnf [1..1000] $ \is ->
         runIdentity $ run $ mapM_ yield is `fuse` mapC (+ 1) `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, monadic sum" $ whnfIO $
-        run2 $ mapM_ yield [1..1000] `fuse` mapC (+ 1) `fuse` foldC (+) 0
+    , bench "mapM_ yield, map, monadic sum" $ whnfIO $ do
+        x <- readIORef thousandRef
+        run2 $ mapM_ yield [1..x] `fuse` mapC (+ 1) `fuse` foldC (+) 0
     , bench "enumFromTo, pure sum" $ flip whnf 1000 $ \i ->
         runIdentity $ run $ enumFromToC 1 i `fuse` foldC (+) 0
-    , bench "mapM_ yield, monadic sum" $ whnfIO $
-        run2 $ enumFromToC 1 1000 `fuse` foldC (+) 0
+    , bench "mapM_ yield, monadic sum" $ whnfIO $ do
+        x <- readIORef thousandRef
+        run2 $ enumFromToC 1 x `fuse` foldC (+) 0
     , bench "mapM_ yield, map, pure sum" $ flip whnf 1000 $ \i ->
         runIdentity $ run $ enumFromToC 1 i `fuse` mapC (+ 1) `fuse` foldC (+) 0
-    , bench "mapM_ yield, map, monadic sum" $ whnfIO $
-        run2 $ enumFromToC 1 1000 `fuse` mapC (+ 1) `fuse` foldC (+) 0
+    , bench "mapM_ yield, map, monadic sum" $ whnfIO $ do
+        x <- readIORef thousandRef
+        run2 $ enumFromToC 1 x `fuse` mapC (+ 1) `fuse` foldC (+) 0
     ]
 
 main :: IO ()
